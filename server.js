@@ -4,6 +4,8 @@ const fs = require('fs');
 const logFile = 'logs.json';
 
 app.use(express.urlencoded({ extended: true }));
+const cors = require('cors');
+app.use(cors({ origin: '*' }));
 app.get('/', (req, res) => {
   res.send('Server is running!');
 });
