@@ -21,19 +21,16 @@ app.get('/dashboard', (req, res) => {
   });
 
   // Form to create new tracking link
-  let html = `
-    <h1>Email Tracker Dashboard</h1>
-    <form method="POST" action="/dashboard/create">
-      <input name="trackid" placeholder="Enter tag/email for tracking" required>
-      <button type="submit">Create Tracking Link</button>
-    </form>
-  `;
+  let html = `<h1>Email Tracker Dashboard</h1>`;
+  html += `<form method="POST" action="/dashboard/create">`;
+  html += `<input name="trackid" placeholder="Enter tag/email for tracking" required>`;
+  html += `<button type="submit">Create Tracking Link</button>`;
+  html += `</form>`;
 
-  // Show last generated tracking link if available
-  if (req.query.link) {
-    html += `<p><b>Tracking Link:</b>
-      <input type="text" value="${req.query.link}" size="60" readonly>
-    </p>`;
+  // Display the generated <img> tag for pasting
+  if (req.query.imgtag) {
+    html += `<p><b>Tracking Image Tag (copy this):</b></p>`;
+    html += `<textarea rows="3" cols="80" readonly>${req.query.imgtag}</textarea>`;
   }
 
   // Existing stats table
@@ -48,11 +45,10 @@ app.get('/dashboard', (req, res) => {
 });
 
 app.post('/dashboard/create', (req, res) => {
-  const base = req.headers['x-forwarded-proto'] + '://' + req.headers.host; // Generates your Render URL
+  const base = req.headers['x-forwarded-proto'] + '://' + req.headers.host;
   const trackid = req.body.trackid.trim().replace(/\s+/g, '-');
-  const url = `${base}/track/${encodeURIComponent(trackid)}.png`;
-  // Redirect back to dashboard, displaying the link
-  res.redirect(`/dashboard?link=${encodeURIComponent(url)}`);
+  const imgTag = `<img src="${base}/track/${encodeURIComponent(trackid)}.png" width="1" height="1" alt="">`;
+  res.redirect(`/dashboard?imgtag=${encodeURIComponent(imgTag)}`);
 });
 
 app.get('/track/:id.png', (req, res) => {
