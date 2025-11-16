@@ -1,15 +1,76 @@
 const express = require('express');
 const app = express();
+const fs = require('fs');
+const logFile = 'logs.json';
 
+app.use(express.urlencoded({ extended: true }));
 app.get('/', (req, res) => {
   res.send('Server is running!');
 });
 
+app.get('/dashboard', (req, res) => {
+  let logs = [];
+  if (fs.existsSync(logFile)) logs = JSON.parse(fs.readFileSync(logFile));
+
+  // Create summary as before
+  const summary = {};
+  logs.forEach(log => {
+    if (!summary[log.id]) summary[log.id] = { count: 0, events: [] };
+    summary[log.id].count += 1;
+    summary[log.id].events.push(log);
+  });
+
+  // Form to create new tracking link
+  let html = `
+    <h1>Email Tracker Dashboard</h1>
+    <form method="POST" action="/dashboard/create">
+      <input name="trackid" placeholder="Enter tag/email for tracking" required>
+      <button type="submit">Create Tracking Link</button>
+    </form>
+  `;
+
+  // Show last generated tracking link if available
+  if (req.query.link) {
+    html += `<p><b>Tracking Link:</b>
+      <input type="text" value="${req.query.link}" size="60" readonly>
+    </p>`;
+  }
+
+  // Existing stats table
+  html += `<table border="1"><tr><th>Email ID</th><th>Opens</th><th>Details</th></tr>`;
+  Object.entries(summary).forEach(([id, {count, events}]) => {
+    html += `<tr><td>${id}</td><td>${count}</td><td><ul>`;
+    events.forEach(ev => { html += `<li>${ev.time} (IP: ${ev.ip})</li>`; });
+    html += `</ul></td></tr>`;
+  });
+  html += `</table>`;
+  res.send(html);
+});
+
+app.post('/dashboard/create', (req, res) => {
+  const base = req.headers['x-forwarded-proto'] + '://' + req.headers.host; // Generates your Render URL
+  const trackid = req.body.trackid.trim().replace(/\s+/g, '-');
+  const url = `${base}/track/${encodeURIComponent(trackid)}.png`;
+  // Redirect back to dashboard, displaying the link
+  res.redirect(`/dashboard?link=${encodeURIComponent(url)}`);
+});
+
 app.get('/track/:id.png', (req, res) => {
   // Here you'll log email open info, for example:
+    const entry = {
+    id: req.params.id,
+    time: new Date().toISOString(),
+    ip: req.ip || req.headers['x-forwarded-for'],
+    ua: req.headers['user-agent']
+  };
+  let logs = [];
+  // Read existing logs
+  if (fs.existsSync(logFile)) logs = JSON.parse(fs.readFileSync(logFile));
+  logs.push(entry);
+  fs.writeFileSync(logFile, JSON.stringify(logs, null, 2));
+  // Send 1x1 pixel as before
   console.log(`Tracking pixel loaded for ID: ${req.params.id} at ${new Date()}`);
 
-  // Send a 1x1 transparent pixel image
   const img = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIW2P4z8DwHwAFBAK+dmZYWQAAAABJRU5ErkJggg==",
     'base64'
